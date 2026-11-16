@@ -29,7 +29,7 @@ export default function Login() {
     <div className="grid min-h-dvh place-items-center px-4">
       <Card className="w-full max-w-sm p-6">
         <div className="mb-5 flex items-center gap-3">
-          <img src="/icon.svg" alt="" className="h-10 w-10 rounded-xl" />
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-10 w-10 rounded-xl" />
           <div>
             <h1 className="text-lg font-bold">{t("app.name")}</h1>
             <p className="text-sm text-slate-500">{mode === "signIn" ? t("auth.signInTitle") : t("auth.signUpTitle")}</p>

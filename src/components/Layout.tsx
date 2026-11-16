@@ -68,7 +68,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-1 bg-navy-900 px-3.5 py-5 text-slate-300 lg:flex">
         <Link to="/" className="mb-5 flex items-center gap-2.5 px-2.5 text-[15px] font-bold text-white">
-          <img src="/icon.svg" alt="" className="h-9 w-9 rounded-[10px]" />
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-9 w-9 rounded-[10px]" />
           {t("app.name")}
         </Link>
         <nav className="flex flex-col gap-1">

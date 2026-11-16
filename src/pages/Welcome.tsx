@@ -39,7 +39,7 @@ export default function Welcome() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
       <div className="mb-6 flex items-center gap-3">
-        <img src="/icon.svg" alt="" className="h-11 w-11 rounded-xl" />
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-11 w-11 rounded-xl" />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("welcome.title")}</h1>
           <p className="text-sm text-slate-500">{t("welcome.subtitle")}</p>
