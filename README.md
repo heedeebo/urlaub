@@ -21,6 +21,18 @@ Ohne weitere Einrichtung speichert die App alles **in diesem Browser auf diesem 
 
 E-Mail ohne Einrichtung: Beim Senden lädt die App das unterschriebene PDF herunter und öffnet einen fertigen E-Mail-Entwurf in deinem Mailprogramm. Du hängst nur noch das PDF an und schickst ab.
 
+## 1b. Online über GitHub Pages (wie die Reisekosten-App)
+
+Nichts installieren, nur eine Adresse im Browser: `https://heedeebo.github.io/urlaub/`. Die Daten bleiben auf jedem Gerät für sich (wie bei der Reisekosten-App). Zum Übertragen: **Download backup** und auf dem anderen Gerät **Restore backup**. E-Mails gehen über PDF und Mail-Entwurf.
+
+Einmalig einrichten:
+1. Auf github.com **New repository**, Name `urlaub`, **Public**, ohne README.
+2. Code hochladen (macht Claude, der Ordner ist schon ein Git-Repository).
+3. Im Repository **Settings > Pages**, bei **Source** "GitHub Actions" wählen.
+4. Unter **Actions** sieht man, wie GitHub die App baut. Nach etwa zwei Minuten ist sie online.
+
+Neue Version: einfach wieder hochladen. GitHub baut und testet automatisch (`.github/workflows/deploy.yml`). Schlagen die Tests fehl, bleibt die alte Version online.
+
 ## 2. Supabase einrichten (Datenbank und Login)
 
 Dauer etwa 15 Minuten. Kostenloser Plan reicht.
