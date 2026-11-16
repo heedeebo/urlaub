@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-navy-950: #0a1630;
+  --color-navy-900: #0f1f3d;
+  --color-navy-800: #1d3461;
+  --color-navy-700: #2c4377;
+  --color-navy-100: #dbe3f2;
+  --color-navy-50: #e8edf7;
+
+  --color-canvas: #f4f6f9;
+  --color-line: #e5e8ee;
+  --color-line-soft: #eef0f4;
+  --color-weekend: #f1f3f6;
+
+  --color-carry: #d97706;
+  --color-carry-dark: #9a5300;
+  --color-carry-soft: #fff4e0;
+  --color-carry-line: #f6d199;
+
+  --color-current: #2747a8;
+  --color-current-soft: #e4eafb;
+
+  --color-pending: #7c5cd6;
+  --color-pending-soft: #f1ecff;
+
+  --color-rejected: #c2410c;
+  --color-rejected-soft: #fdecea;
+
+  --color-holiday: #0f766e;
+  --color-holiday-soft: #e3f4f1;
+
+  --color-ok: #15803d;
+  --color-ok-soft: #e8f6ec;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: #0f172a;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.pb-safe {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+input[type="date"] {
+  min-height: 2.5rem;
+}
+
+@media print {
+  aside, nav { display: none !important; }
+}

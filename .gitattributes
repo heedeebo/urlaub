@@ -1,0 +1,5 @@
+# Zeilenenden einheitlich halten
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.bat text eol=crlf
