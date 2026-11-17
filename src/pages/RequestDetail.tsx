@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import BalanceBlock from "../components/BalanceBlock";
+import MailWithPdf from "../components/MailWithPdf";
 import { Button, Card, Field, Input, Notice, PageHeader, StatusBadge } from "../components/ui";
 import { useStore } from "../data/store";
 import { formatDate, formatDateTime, formatDays, formatRange, formatShort } from "../domain/format";
@@ -98,6 +99,7 @@ export default function RequestDetail() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[1fr_380px]">
         <div className="grid gap-4">
+          {r.status === "pending" && r.sentVia !== "email" && <MailWithPdf request={r} highlight={sentNotice === "mailto"} />}
           <Card className="p-4 sm:p-5">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
               <div>

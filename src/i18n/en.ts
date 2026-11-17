@@ -306,9 +306,23 @@ const en = {
     needManager: "Please add your manager's email address in Settings.",
     failed: "Sending failed.",
     sentEmail: "Sent to {{to}} with the signed PDF attached. The request is now pending.",
-    sentMailto: "Email sending is not set up yet. The signed PDF was downloaded and an email draft opened. Attach the PDF and send it. The request is now marked as pending.",
+    sentMailto: "The request is signed and marked as pending. Now send the email with the PDF using the box below.",
     historyEmail: "Sent by email to {{to}}",
-    historyMailto: "Email draft opened, PDF downloaded",
+    historyMailto: "Signed, email with PDF prepared",
+  },
+  mailPdf: {
+    title: "Send the email with the PDF",
+    intro: "The app cannot send emails on its own. Pick one way below, the signed PDF is attached to the email.",
+    preparing: "Preparing the PDF...",
+    to: "To:",
+    copy: "Copy address",
+    copied: "Copied",
+    share: "Open email app with PDF",
+    shareHint: "Choose Mail, Outlook or Gmail. The PDF and the text are already in the email. Enter the address above as recipient.",
+    eml: "Download email with PDF for Outlook",
+    emlHint: "On the laptop: open the downloaded file. Outlook shows the finished email with recipient, text and PDF. Click Send.",
+    draft: "Email draft without attachment",
+    draftHint: "Downloads the PDF and opens a draft. You attach the PDF yourself.",
   },
   detail: {
     notFound: "Request not found.",
@@ -359,6 +373,10 @@ const en = {
     notCounted: "Not counted",
   },
   changelog: {
+    v1_4_0: [
+      "Email with the signed PDF attached: on the phone via the share button, on the laptop as an email file for Outlook.",
+      "Recipient address can be copied with one tap.",
+    ],
     v1_3_0: ["Version and change list in Settings.", "Version number in the side menu."],
     v1_2_0: [
       "Vacation across New Year: each year has its own balance in the request, PDF and email.",

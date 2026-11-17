@@ -5,7 +5,7 @@ import { balanceForRequest } from "../domain/ledger";
 import type { RequestStatus, VacationRequest } from "../domain/types";
 import { bytesToBase64, downloadBlob } from "./download";
 const loadPdf = () => import("./pdf");
-import { openMailDraft, sendViaServer } from "./sendRequest";
+import { sendViaServer } from "./sendRequest";
 
 export type SendOutcome =
   | { kind: "email"; to: string }
@@ -66,7 +66,7 @@ export function useRequestActions() {
     }
     if (result.reason !== "not_configured") return { kind: "error", message: result.message || t("send.failed") };
 
-    downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), filename);
+    // No server: the request page then offers ways to send the email with the PDF attached.
     await saveRequest({
       ...prepared,
       status: "pending",
@@ -74,8 +74,23 @@ export function useRequestActions() {
       updatedAt: now,
       statusHistory: [...prepared.statusHistory, { status: "pending", at: now, note: t("send.historyMailto") }],
     });
-    setTimeout(() => openMailDraft({ to: profile.managerEmail, cc: profile.personalEmail, subject: mail.subject, text: mail.body }), 400);
     return { kind: "mailto", to: profile.managerEmail };
+  };
+
+  /** Everything needed to send a request by hand: recipient, text and the signed PDF. */
+  const mailWithPdf = async (r: VacationRequest) => {
+    const { generateRequestPdf, pdfFilename } = await loadPdf();
+    const balance = balanceOf(r);
+    const pdf = await generateRequestPdf({ t, profile, request: r, balance });
+    const mail = renderEmail(data.settings.emailTemplate, templateValues(profile, r, balance));
+    return {
+      to: profile.managerEmail,
+      cc: profile.personalEmail || undefined,
+      subject: mail.subject,
+      text: mail.body,
+      filename: pdfFilename(r, profile),
+      pdf,
+    };
   };
 
   const setStatus = async (r: VacationRequest, status: RequestStatus, note: string) => {
@@ -92,5 +107,5 @@ export function useRequestActions() {
     });
   };
 
-  return { balanceOf, buildPdf, downloadPdf, previewEmail, send, setStatus };
+  return { balanceOf, buildPdf, downloadPdf, mailWithPdf, previewEmail, send, setStatus };
 }
