@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Link } from "react-router-dom";
+import { APP_VERSION } from "../changelog";
 import { useStore } from "../data/store";
 import { supabase } from "../data/supabase";
 import { formatDate } from "../domain/format";
@@ -93,7 +94,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Icon name="plus" className="h-4 w-4" />
           {t("nav.newRequest")}
         </Link>
-        <div className="mt-auto flex items-center gap-2.5 border-t border-white/10 px-2 pt-3">
+        <Link to="/settings#about" className="mt-auto px-2.5 pb-2 text-xs text-slate-400 hover:text-white">
+          {t("app.version", { version: APP_VERSION })}
+        </Link>
+        <div className="flex items-center gap-2.5 border-t border-white/10 px-2 pt-3">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-navy-700 text-[13px] font-semibold text-white">{initials}</div>
           <div className="min-w-0 text-sm">
             <div className="truncate font-semibold text-white">{p.firstName || t("app.name")}</div>

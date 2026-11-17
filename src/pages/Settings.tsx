@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { ProfileFields, WorkdayPicker } from "../components/ProfileFields";
-import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from "../components/ui";
+import { Button, Card, cx, Field, Input, Notice, PageHeader, Select, Textarea } from "../components/ui";
 import { useStore } from "../data/store";
 import { supabaseConfigured } from "../data/supabase";
 import { yearOf } from "../domain/dates";
@@ -12,6 +12,7 @@ import { formatDate, formatDateTime, formatDays } from "../domain/format";
 import type { Bucket, EmailTemplate, ExpiryPolicy, Policy, Profile, ProrationMethod, YearAccount } from "../domain/types";
 import { exportBackup, exportCsv, parseBackup } from "../lib/backup";
 import { LANGUAGES } from "../i18n";
+import { APP_VERSION, BUILD_COMMIT, BUILD_TIME, RELEASES } from "../changelog";
 
 function Section({ id, title, subtitle, children }: { id: string; title: string; subtitle?: string; children: ReactNode }) {
   return (
@@ -160,7 +161,7 @@ export default function Settings() {
     <>
       <PageHeader title={t("settings.title")} subtitle={t("settings.subtitle")} />
       <nav className="mb-4 flex gap-1.5 overflow-x-auto pb-1 text-sm">
-        {["profile", "account", "years", "adjustments", "email", "data"].map((s) => (
+        {["profile", "account", "years", "adjustments", "email", "data", "about"].map((s) => (
           <a key={s} href={`#${s}`} className="whitespace-nowrap rounded-full border border-line bg-white px-3 py-1.5 font-semibold text-slate-600">
             {t(`settings.nav.${s}`)}
           </a>
@@ -418,6 +419,36 @@ export default function Settings() {
               </Select>
             </Field>
           </div>
+        </Section>
+
+        <Section id="about" title={t("settings.about.title")} subtitle={t("settings.about.subtitle")}>
+          <div className="mb-4 rounded-xl bg-navy-900 px-4 py-3.5 text-white">
+            <div className="text-lg font-bold">{t("settings.about.current", { version: APP_VERSION })}</div>
+            <div className="text-xs text-slate-300">
+              {t("settings.about.built", { date: formatDateTime(BUILD_TIME), commit: BUILD_COMMIT })}
+            </div>
+          </div>
+          <ol className="grid gap-3">
+            {RELEASES.map((r) => {
+              const current = r.version === APP_VERSION;
+              const items = t(`changelog.${r.key}`, { returnObjects: true }) as unknown as string[];
+              return (
+                <li key={r.version} className={cx("rounded-xl border px-4 py-3", current ? "border-navy-900 bg-navy-50" : "border-line")}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="tabular">{r.version}</b>
+                    <span className="text-xs text-slate-500">{formatDate(r.date)}</span>
+                    {current && <span className="rounded-full bg-navy-900 px-2 py-0.5 text-[11px] font-semibold text-white">{t("settings.about.youAreHere")}</span>}
+                  </div>
+                  <ul className="mt-1.5 list-disc pl-5 text-[13.5px] text-slate-600">
+                    {(Array.isArray(items) ? items : []).map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-xs text-slate-400">{t("settings.about.updateHint")}</p>
         </Section>
       </div>
     </>

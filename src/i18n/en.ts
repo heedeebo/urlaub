@@ -1,6 +1,7 @@
 /** English texts. Copy this file to de.ts to add German later. */
 const en = {
   app: {
+    version: "Version {{version}}",
     name: "My Vacation Manager",
     modeLocal: "Stored on this device",
     modeCloud: "Synced with Supabase",
@@ -357,6 +358,21 @@ const en = {
     split: "{{carry}} carryover · {{current}} current",
     notCounted: "Not counted",
   },
+  changelog: {
+    v1_3_0: ["Version and change list in Settings.", "Version number in the side menu."],
+    v1_2_0: [
+      "Vacation across New Year: each year has its own balance in the request, PDF and email.",
+      "Pending requests of this year lower the expected carryover of next year.",
+      "Dashboard: Years at a glance, carryover and vacation of the year kept apart.",
+      "History counts only the days of the selected year.",
+    ],
+    v1_1_0: ["Online at heedeebo.github.io/urlaub. Works without installing anything.", "Can be added to the home screen as an app."],
+    v1_0_0: [
+      "First version: carryover and current year balance, carryover first until March 31.",
+      "Calendar with holidays, request with signature, PDF and email draft.",
+      "Status, history, adjustments and backup.",
+    ],
+  },
   history: {
     ofTotal: "of {{total}} in this request",
     title: "History",
@@ -389,6 +405,15 @@ const en = {
       adjustments: "Adjustments",
       email: "Email template",
       data: "Data and backup",
+      about: "Version",
+    },
+    about: {
+      title: "Version and changes",
+      subtitle: "Which version you are using and what changed.",
+      current: "You are using version {{version}}",
+      built: "Published {{date}}, build {{commit}}",
+      youAreHere: "Current",
+      updateHint: "New versions load automatically. If something looks old, close the app and open it again.",
     },
     profile: {
       title: "Employee profile",

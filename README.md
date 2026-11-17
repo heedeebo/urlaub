@@ -31,7 +31,7 @@ Einmalig einrichten:
 3. Im Repository **Settings > Pages**, bei **Source** "GitHub Actions" wählen.
 4. Unter **Actions** sieht man, wie GitHub die App baut. Nach etwa zwei Minuten ist sie online.
 
-Neue Version: einfach wieder hochladen. GitHub baut und testet automatisch (`.github/workflows/deploy.yml`). Schlagen die Tests fehl, bleibt die alte Version online.
+Neue Version: in `package.json` die Versionsnummer erhöhen, in `src/changelog.ts` und unter `changelog` in `src/i18n/en.ts` eintragen, was neu ist. Die App zeigt das unter **Settings > Version**. Dann hochladen. GitHub baut und testet automatisch (`.github/workflows/deploy.yml`). Schlagen die Tests fehl, bleibt die alte Version online.
 
 ## 2. Supabase einrichten (Datenbank und Login)
 
