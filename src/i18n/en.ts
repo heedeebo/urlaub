@@ -373,6 +373,7 @@ const en = {
     notCounted: "Not counted",
   },
   changelog: {
+    v1_4_1: ["Fix: after an update, an app that was still open now loads the new version by itself instead of failing to create the PDF."],
     v1_4_0: [
       "Email with the signed PDF attached: on the phone via the share button, on the laptop as an email file for Outlook.",
       "Recipient address can be copied with one tap.",

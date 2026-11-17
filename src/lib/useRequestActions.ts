@@ -4,7 +4,8 @@ import { renderEmail, templateValues } from "../domain/email";
 import { balanceForRequest } from "../domain/ledger";
 import type { RequestStatus, VacationRequest } from "../domain/types";
 import { bytesToBase64, downloadBlob } from "./download";
-const loadPdf = () => import("./pdf");
+import { importOrReload } from "./staleVersion";
+const loadPdf = () => importOrReload(() => import("./pdf"));
 import { sendViaServer } from "./sendRequest";
 
 export type SendOutcome =
