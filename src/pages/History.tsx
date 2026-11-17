@@ -112,7 +112,12 @@ export default function History() {
                       <div className="hidden text-xs text-slate-500 sm:block">
                         {s ? t("requests.split", { carry: d(s.carryover), current: d(s.current) }) : t("requests.notCounted")}
                       </div>
-                      <div className="tabular hidden text-sm sm:block">{d(sumDays(r.days))}</div>
+                      <div className="tabular hidden text-sm sm:block">
+                        {d(sumDays(r.days.filter((x) => yearOf(x.date) === y)))}
+                        {r.days.some((x) => yearOf(x.date) !== y) && (
+                          <small className="block text-[11px] font-normal text-slate-400">{t("history.ofTotal", { total: d(sumDays(r.days)) })}</small>
+                        )}
+                      </div>
                       <StatusBadge status={r.status} />
                     </Link>
                   );

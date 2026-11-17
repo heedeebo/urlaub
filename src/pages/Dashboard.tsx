@@ -5,9 +5,114 @@ import { Icon } from "../components/Layout";
 import Ring from "../components/Ring";
 import { Button, Card, cx, Dot, Notice, PageHeader, Select, StatusBadge } from "../components/ui";
 import { useStore } from "../data/store";
-import { daysBetween, yearOf } from "../domain/dates";
+import { daysBetween, roundHalf, yearOf } from "../domain/dates";
+import type { YearLedger } from "../domain/ledger";
+import type { RequestDay } from "../domain/types";
 import { formatDate, formatDays, formatRange } from "../domain/format";
 import { sumDays } from "../domain/workdays";
+
+/** "2026: 4 · 2027: 4" for a request across New Year. */
+function perYear(days: RequestDay[]): string {
+  const byYear = new Map<number, number>();
+  for (const x of days) byYear.set(yearOf(x.date), (byYear.get(yearOf(x.date)) ?? 0) + x.value);
+  return [...byYear].map(([yy, n]) => `${yy}: ${formatDays(n)}`).join(" · ");
+}
+
+/**
+ * All tracked years side by side. Carryover and the year's own vacation are
+ * kept strictly apart. Values of years that depend on open requests of the
+ * previous year are marked as expected.
+ */
+function YearsOverview({ years, selected, onSelect }: { years: number[]; selected: number; onSelect: (y: number) => void }) {
+  const { t } = useTranslation();
+  const { ledger, today } = useStore();
+  const thisYear = yearOf(today);
+  const cols = years.map((yy) => ledger(yy));
+  const d = (n: number) => formatDays(n);
+  const expected = (l: YearLedger) => l.year > thisYear || l.carryoverReservedByPrev > 0;
+  type RowDef = { label: string; value: (l: YearLedger) => string; strong?: boolean; tone?: "carry" | "current" | "total" };
+  const groups: { title: string; tone: "carry" | "current" | "total"; rows: RowDef[] }[] = [
+    {
+      title: t("dashboard.years.carryTitle"),
+      tone: "carry",
+      rows: [
+        { label: t("dashboard.years.carryFrom"), value: (l) => `${d(roundHalf(l.carryoverTotal - l.carryoverReservedByPrev))}${expected(l) ? " *" : ""}` },
+        { label: t("dashboard.years.deadline"), value: (l) => formatDate(l.carryoverDeadline, "en-US", { month: "short", day: "numeric" }) },
+        { label: t("dashboard.years.used"), value: (l) => d(l.approved.carryover) },
+        { label: t("dashboard.years.reserved"), value: (l) => d(l.pending.carryover) },
+        { label: t("dashboard.years.expired"), value: (l) => (l.deadlinePassed ? d(l.expired) : "-") },
+        { label: t("dashboard.years.left"), value: (l) => d(l.freeCarryover), strong: true },
+      ],
+    },
+    {
+      title: t("dashboard.years.currentTitle"),
+      tone: "current",
+      rows: [
+        { label: t("dashboard.years.entitlement"), value: (l) => d(l.currentTotal) },
+        { label: t("dashboard.years.used"), value: (l) => d(l.approved.current) },
+        { label: t("dashboard.years.reserved"), value: (l) => d(l.pending.current) },
+        { label: t("dashboard.years.left"), value: (l) => d(l.freeCurrent), strong: true },
+      ],
+    },
+    {
+      title: t("dashboard.years.totalTitle"),
+      tone: "total",
+      rows: [{ label: t("dashboard.years.freeTotal"), value: (l) => d(l.freeTotal), strong: true }],
+    },
+  ];
+  const toneClass = { carry: "text-carry-dark", current: "text-navy-800", total: "text-slate-900" };
+  return (
+    <Card className="mb-4 py-1.5">
+      <div className="px-5 pb-1 pt-3">
+        <h2 className="text-base font-semibold">{t("dashboard.years.title")}</h2>
+        <p className="text-sm text-slate-500">{t("dashboard.years.subtitle")}</p>
+      </div>
+      <div className="overflow-x-auto px-2 pb-2">
+        <table className="w-full border-collapse text-[13px]" style={{ minWidth: 150 + cols.length * 78 }}>
+          <thead>
+            <tr>
+              <th />
+              {cols.map((l) => (
+                <th key={l.year} className="px-2 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(l.year)}
+                    className={cx(
+                      "rounded-md px-2 py-0.5 font-bold tabular",
+                      l.year === selected ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100",
+                    )}
+                  >
+                    {l.year}
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          {groups.map((g) => (
+            <tbody key={g.title}>
+              <tr>
+                <td colSpan={cols.length + 1} className={cx("px-3 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider", toneClass[g.tone])}>
+                  {g.title}
+                </td>
+              </tr>
+              {g.rows.map((row) => (
+                <tr key={row.label} className={cx("border-t border-line-soft", row.strong && "font-bold")}>
+                  <td className={cx("px-3 py-1.5", row.strong ? "text-slate-900" : "text-slate-500")}>{row.label}</td>
+                  {cols.map((l) => (
+                    <td key={l.year} className={cx("tabular px-3 py-1.5 text-right", l.year === selected && "bg-navy-50")}>
+                      {l.tracked ? row.value(l) : "-"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          ))}
+        </table>
+      </div>
+      {cols.some((l) => l.tracked && expected(l)) && <p className="px-5 pb-3 text-xs text-slate-400">{t("dashboard.years.expectedNote")}</p>}
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -225,6 +330,8 @@ export default function Dashboard() {
         ))}
       </div>
 
+      <YearsOverview years={years} selected={year} onSelect={setYear} />
+
       <Card className="py-1.5">
         <div className="flex items-center justify-between px-5 pb-2 pt-3">
           <h2 className="text-base font-semibold">{t("dashboard.upcoming")}</h2>
@@ -247,6 +354,7 @@ export default function Dashboard() {
               </div>
               <div className="hidden text-sm text-slate-500 sm:block">
                 {t("common.days", { count: sumDays(r.days), value: d(sumDays(r.days)) })}
+                {yearOf(r.start) !== yearOf(r.end) && <small className="block text-xs text-slate-400">{perYear(r.days)}</small>}
               </div>
               <StatusBadge status={r.status} />
             </Link>

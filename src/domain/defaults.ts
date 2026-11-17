@@ -10,6 +10,26 @@ From: {{from}}
 To: {{to}}
 Requested vacation days: {{days}}
 
+{{balanceBlock}}
+{{commentBlock}}
+Please find my signed vacation request attached.
+I would appreciate your confirmation.
+
+Kind regards,
+{{employeeName}}`,
+};
+
+/** Default template up to Nov 2026. Saved copies of it are upgraded automatically. */
+export const LEGACY_EMAIL_TEMPLATE: EmailTemplate = {
+  subject: "Vacation request: {{employeeName}}, {{dateRange}}",
+  body: `Dear {{managerName}},
+
+I would like to request vacation for the following period:
+
+From: {{from}}
+To: {{to}}
+Requested vacation days: {{days}}
+
 Vacation balance:
 Previous year carryover: {{carryover}} days
 Carryover deadline: {{carryoverDeadline}}

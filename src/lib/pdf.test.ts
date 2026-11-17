@@ -56,3 +56,35 @@ describe("PDF document", () => {
     if (process.env.PDF_OUT) writeFileSync(process.env.PDF_OUT, bytes);
   });
 });
+
+describe("PDF document across New Year", () => {
+  it("shows one balance column per year and stays on one page", async () => {
+    await i18n.init({ resources: { en: { translation: en } }, lng: "en", interpolation: { escapeValue: false } });
+    const s = defaultSettings(2026);
+    s.profile = { ...s.profile, firstName: "Chris", lastName: "Doe", company: "Example GmbH", employmentStart: "2015-04-01", department: "Sales", jobTitle: "Manager" };
+    const ctx = { workdays: [1, 2, 3, 4, 5], holiday: createHolidayLookup("DE", "BW") };
+    const r: VacationRequest = {
+      id: "r2",
+      number: "VR-2026-004",
+      start: "2026-12-28",
+      end: "2027-01-08",
+      days: buildRequestDays("2026-12-28", "2027-01-08", ctx),
+      comment: "Christmas holidays with the family.",
+      status: "pending",
+      signature: { dataUrl: PNG, signedAt: "2026-11-17T09:30:00.000Z" },
+      statusHistory: [],
+      createdAt: "2026-11-17T09:00:00.000Z",
+      updatedAt: "",
+      sentAt: "2026-11-17T09:31:00.000Z",
+    };
+    const balance = balanceForRequest(
+      { settings: s, yearAccounts: [{ year: 2026, carryoverOverride: 3 }], adjustments: [], requests: [], today: "2026-11-17" },
+      r,
+    );
+    expect(balance.parts?.map((p) => p.year)).toEqual([2026, 2027]);
+    const bytes = await generateRequestPdf({ t: i18n.t, profile: s.profile, request: r, balance, generatedAt: new Date("2026-11-17T09:31:00Z") });
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(1);
+    if (process.env.PDF_OUT_MULTI) writeFileSync(process.env.PDF_OUT_MULTI, bytes);
+  });
+});

@@ -83,10 +83,18 @@ export interface StatusChange {
   note?: string;
 }
 
-export interface BalanceSnapshot {
+/** Balance of one calendar year as seen by one request. */
+export interface YearBalance {
   year: number;
+  /**
+   * Carryover from the previous year that is still usable. For a year that has
+   * not started yet (or whose previous year has open requests) this is the
+   * expected value.
+   */
   carryoverAvailable: number;
   carryoverDeadline: ISODate;
+  /** True when the carryover depends on how the previous year ends. */
+  carryoverExpected?: boolean;
   currentAvailable: number;
   totalAvailable: number;
   /** Days already reserved by other pending requests in the same year. */
@@ -95,8 +103,13 @@ export interface BalanceSnapshot {
   fromCarryover: number;
   fromCurrent: number;
   projected: number;
-  /** Days of this request that fall into the following year, if any. */
+}
+
+export interface BalanceSnapshot extends YearBalance {
+  /** Days of this request that fall into a later year, if any. */
   nextYearDays: number;
+  /** One entry per calendar year the request touches (first year first). Missing in old snapshots. */
+  parts?: YearBalance[];
 }
 
 export interface VacationRequest {

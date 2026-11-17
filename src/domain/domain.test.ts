@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, DEFAULT_EMAIL_TEMPLATE } from "./defaults";
+import { defaultSettings, DEFAULT_EMAIL_TEMPLATE, LEGACY_EMAIL_TEMPLATE } from "./defaults";
 import { renderEmail, templateValues } from "./email";
 import { entitlementForYear, fullMonthsEmployed } from "./entitlement";
 import { createHolidayLookup, easterSunday, publicHolidays } from "./holidays";
@@ -288,6 +288,47 @@ describe("year transitions", () => {
     expect(y27.approved.carryover).toBe(4); // FIFO: carryover from 2026 first
   });
 
+  it("shows a separate balance per year for a request across New Year", () => {
+    const s = settings({ trackingStartYear: 2026 });
+    const summer = req("2026-08-03", "2026-08-28", "approved"); // 20 days, 10 left in 2026
+    const draft = req("2026-12-28", "2027-01-08", "draft"); // 4 days 2026, 4 days 2027
+    const inp = input({ settings: s, requests: [summer, draft], yearAccounts: [{ year: 2026, carryoverOverride: 0 }], today: "2026-11-17" });
+    const b = balanceForRequest(inp, draft);
+    expect(b.parts).toHaveLength(2);
+    const [p26, p27] = b.parts!;
+    expect(p26).toMatchObject({ year: 2026, carryoverAvailable: 0, currentAvailable: 10, requested: 4, fromCarryover: 0, fromCurrent: 4, projected: 6 });
+    // 2027 starts with what 2026 has left after this request: 10 - 4 = 6
+    expect(p27).toMatchObject({ year: 2027, carryoverAvailable: 6, carryoverExpected: true, currentAvailable: 30, totalAvailable: 36 });
+    expect(p27).toMatchObject({ requested: 4, fromCarryover: 4, fromCurrent: 0, projected: 32 });
+    expect(b.nextYearDays).toBe(4);
+  });
+
+  it("reduces next year's expected carryover by pending requests of this year", () => {
+    const s = settings({ trackingStartYear: 2026 });
+    const summer = req("2026-08-03", "2026-08-28", "approved"); // 10 left
+    const december = req("2026-12-14", "2026-12-16", "pending"); // 3 reserved
+    const february = req("2027-02-01", "2027-02-05", "draft"); // 5 days
+    const inp = input({ settings: s, requests: [summer, december, february], yearAccounts: [{ year: 2026, carryoverOverride: 0 }], today: "2026-11-17" });
+    const y27 = computeYear(2027, inp);
+    expect(y27.carryoverOpening).toBe(10); // official: only approved requests count
+    expect(y27.carryoverReservedByPrev).toBe(3);
+    expect(y27.freeCarryover).toBe(7);
+    expect(y27.atRisk).toBe(7);
+    const b = balanceForRequest(inp, february);
+    expect(b.parts).toHaveLength(1);
+    expect(b).toMatchObject({ year: 2027, carryoverAvailable: 7, carryoverExpected: true, requested: 5, fromCarryover: 5, projected: 32 });
+  });
+
+  it("keeps the next year untouched while the request stays in this year", () => {
+    const s = settings({ trackingStartYear: 2026 });
+    const draft = req("2026-12-14", "2026-12-16", "draft");
+    const inp = input({ settings: s, requests: [draft], yearAccounts: [{ year: 2026, carryoverOverride: 0 }], today: "2026-11-17" });
+    const b = balanceForRequest(inp, draft);
+    expect(b.parts).toHaveLength(1);
+    expect(b.nextYearDays).toBe(0);
+    expect(computeYear(2027, inp).carryoverOpening).toBe(30);
+  });
+
   it("ignores years before tracking started", () => {
     const y = computeYear(2025, input({}));
     expect(y.tracked).toBe(false);
@@ -355,8 +396,30 @@ describe("email template", () => {
     expect(mail.subject).toBe("Vacation request: Chris Doe, May 3 to May 7, 2027");
     expect(mail.body).toContain("Dear Ms. Miller,");
     expect(mail.body).toContain("Requested vacation days: 4"); // Ascension Day on May 6
-    expect(mail.body).toContain("Carryover deadline: March 31, 2027");
-    expect(mail.body).toContain("Projected remaining balance after approval: 31 days");
+    expect(mail.body).toContain("Carryover from 2026: 5 days, deadline March 31, 2027");
+    expect(mail.body).toContain("Remaining in 2027 after approval: 31 days");
     expect(mail.body).not.toContain("Comment:");
+    expect(mail.body).not.toContain("2028");
+  });
+
+  it("upgrades an unchanged old default template to the per-year balance", () => {
+    const s = settings({}, { managerName: "Ms. Miller" });
+    const r = req("2027-05-03", "2027-05-07", "draft");
+    const b = balanceForRequest(input({ settings: s, requests: [r] }), r);
+    const mail = renderEmail(LEGACY_EMAIL_TEMPLATE, templateValues(s.profile, r, b));
+    expect(mail.body).toContain("Vacation balance 2027:");
+    expect(mail.body).not.toContain("Previous year carryover:");
+  });
+
+  it("lists each year separately for a request across New Year", () => {
+    const s = settings({ trackingStartYear: 2026 }, { managerName: "Ms. Miller" });
+    const draft = req("2026-12-28", "2027-01-08", "draft");
+    const inp = input({ settings: s, requests: [draft], yearAccounts: [{ year: 2026, carryoverOverride: 0 }], today: "2026-11-17" });
+    const mail = renderEmail(DEFAULT_EMAIL_TEMPLATE, templateValues(s.profile, draft, balanceForRequest(inp, draft)));
+    expect(mail.body).toContain("Requested vacation days: 8");
+    expect(mail.body).toContain("This request spans 2026 and 2027.");
+    expect(mail.body).toContain("Requested in 2026: 4 days (0 from 2025 carryover, 4 from 2026 vacation)");
+    expect(mail.body).toContain("Carryover from 2026 (expected): 26 days");
+    expect(mail.body).toContain("Requested in 2027: 4 days (4 from 2026 carryover, 0 from 2027 vacation)");
   });
 });

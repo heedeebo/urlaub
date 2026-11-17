@@ -2,7 +2,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf
 import type { TFunction } from "i18next";
 import { employeeName } from "../domain/email";
 import { formatDate, formatDateTime, formatDays, formatShort } from "../domain/format";
-import type { BalanceSnapshot, Profile, VacationRequest } from "../domain/types";
+import type { BalanceSnapshot, Profile, VacationRequest, YearBalance } from "../domain/types";
 import { sumDays } from "../domain/workdays";
 
 const NAVY = rgb(15 / 255, 31 / 255, 61 / 255);
@@ -114,38 +114,49 @@ export async function generateRequestPdf({ t, profile, request, balance, generat
   pair(t("pdf.halfDays"), halves.length ? halves.join(", ") : t("pdf.none"), 1);
   y -= 40;
 
-  // Balance table
-  section(t("pdf.balance", { year: balance.year }));
-  const rowH = 19;
+  // Balance table: one column per calendar year, each year strictly separate.
+  const parts: YearBalance[] = balance.parts?.length ? balance.parts : [balance];
+  const multi = parts.length > 1;
+  section(multi ? t("pdf.balanceMulti", { years: parts.map((p) => p.year).join(" / ") }) : t("pdf.balance", { year: balance.year }));
+  const rowH = multi ? 17 : 19;
   const days = (n: number) => t("common.days", { count: n, value: formatDays(n) });
+  const valueX = (i: number) => W - M - 10 - (parts.length - 1 - i) * 110;
+  const anyExpected = parts.some((p) => p.carryoverExpected);
+  if (multi) {
+    parts.forEach((p, i) => right(String(p.year), valueX(i), y, 10, bold, NAVY));
+    y -= 16;
+  }
   // Carryover highlighted
   page.drawRectangle({ x: M, y: y - 26, width: W - 2 * M, height: 36, color: AMBER_BG, borderColor: rgb(246 / 255, 209 / 255, 153 / 255), borderWidth: 0.7 });
-  text(page, t("pdf.carryover"), M + 10, y - 3, 10, bold, AMBER);
-  right(days(balance.carryoverAvailable), W - M - 10, y - 3, 10, bold, AMBER);
+  text(page, multi ? t("pdf.carryoverPrev") : t("pdf.carryoverFrom", { year: balance.year - 1 }), M + 10, y - 3, 10, bold, AMBER);
+  parts.forEach((p, i) => right(days(p.carryoverAvailable) + (p.carryoverExpected ? " *" : ""), valueX(i), y - 3, 10, bold, AMBER));
   text(page, t("pdf.deadline"), M + 10, y - 18, 8.5, font, AMBER);
-  right(formatDate(balance.carryoverDeadline), W - M - 10, y - 18, 8.5, bold, AMBER);
+  parts.forEach((p, i) => right(formatDate(p.carryoverDeadline), valueX(i), y - 18, 8.5, bold, AMBER));
   y -= 46;
-  const rows: [string, string, boolean?][] = [
-    [t("pdf.currentRemaining"), days(balance.currentAvailable)],
-    [t("pdf.totalAvailable"), days(balance.totalAvailable)],
-    ...(balance.reservedByPending > 0 ? [[t("pdf.reserved"), `- ${days(balance.reservedByPending)}`] as [string, string]] : []),
-    [t("pdf.requested"), days(balance.requested)],
-    [t("pdf.fromCarryover"), days(balance.fromCarryover)],
-    [t("pdf.fromCurrent"), days(balance.fromCurrent)],
-    [t("pdf.projected"), days(balance.projected), true],
+  const label = (key: string, year: number) => (multi ? t(`pdf.${key}`) : t(`pdf.${key}Year`, { year, prev: year - 1 }));
+  const rows: [string, (p: YearBalance) => string, boolean?][] = [
+    [label("currentRemaining", balance.year), (p) => days(p.currentAvailable)],
+    [label("totalAvailable", balance.year), (p) => days(p.totalAvailable)],
+    ...(parts.some((p) => p.reservedByPending > 0)
+      ? [[t("pdf.reserved"), (p: YearBalance) => (p.reservedByPending > 0 ? `- ${days(p.reservedByPending)}` : "-")] as [string, (p: YearBalance) => string]]
+      : []),
+    [label("requested", balance.year), (p) => days(p.requested)],
+    [label("fromCarryover", balance.year), (p) => days(p.fromCarryover)],
+    [label("fromCurrent", balance.year), (p) => days(p.fromCurrent)],
+    [label("projected", balance.year), (p) => days(p.projected), true],
   ];
-  for (const [label, value, strong] of rows) {
+  for (const [rowLabel, value, strong] of rows) {
     if (strong) page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: rowH, color: NAVY_BG });
-    text(page, label, M + 10, y, 10, strong ? bold : font, strong ? TEXT : MUTED);
-    right(value, W - M - 10, y, 10, bold);
+    text(page, rowLabel, M + 10, y, 10, strong ? bold : font, strong ? TEXT : MUTED);
+    parts.forEach((p, i) => right(value(p), valueX(i), y, 10, bold));
     page.drawLine({ start: { x: M, y: y - 6 }, end: { x: W - M, y: y - 6 }, thickness: 0.5, color: LINE });
     y -= rowH;
   }
-  if (balance.nextYearDays > 0) {
-    text(page, t("pdf.nextYear", { days: formatDays(balance.nextYearDays), year: balance.year + 1, count: balance.nextYearDays }), M + 10, y - 2, 8.5, font, MUTED);
-    y -= 14;
+  if (anyExpected) {
+    text(page, t("pdf.expectedNote"), M + 10, y - 1, 8, font, MUTED);
+    y -= 10;
   }
-  y -= 14;
+  y -= anyExpected ? 10 : 14;
 
   // Comment
   if (request.comment.trim()) {

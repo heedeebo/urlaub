@@ -9,6 +9,7 @@ import type {
   Settings,
   VacationRequest,
   YearAccount,
+  YearBalance,
 } from "./types";
 
 export interface LedgerInput {
@@ -68,12 +69,21 @@ export interface YearLedger {
   carryoverRemaining: number;
   currentRemaining: number;
   totalAvailable: number;
-  /** Balances after approved and pending requests. */
+  /**
+   * Carryover that will not arrive because the previous year still has pending
+   * requests (they use up previous year days that would otherwise roll over).
+   */
+  carryoverReservedByPrev: number;
+  /** Same, caused by the preview request's own days in the previous year. */
+  carryoverReducedByPreview: number;
+  /** Balances after approved and pending requests (incl. previous year pending). */
   freeCarryover: number;
   freeCurrent: number;
   freeTotal: number;
   /** Balances after approved, pending and the preview request. */
   projectedTotal: number;
+  projectedCarryover: number;
+  projectedCurrent: number;
   allocations: DayAllocation[];
   byRequest: Map<string, Split>;
 }
@@ -127,15 +137,24 @@ export function computeYear(
   const entitlementIsOverride = acc?.entitlementOverride != null;
   const entitlement = tracked ? (entitlementIsOverride ? acc!.entitlementOverride! : baseEntitlement) : 0;
 
+  // Opening carryover in three variants: after approved requests of the previous
+  // year (the official balance), after its pending requests too, and after the
+  // preview request's own days in the previous year.
   let carryoverOpening = 0;
+  let openingFree = 0;
+  let openingProjected = 0;
   const carryoverIsOverride = acc?.carryoverOverride != null;
   if (carryoverIsOverride) {
-    carryoverOpening = acc!.carryoverOverride!;
+    carryoverOpening = openingFree = openingProjected = acc!.carryoverOverride!;
   } else if (tracked && year > policy.trackingStartYear) {
-    const prev = computeYear(year - 1, input, undefined, cache);
-    const rolled = prev.currentRemaining + (policy.expiryPolicy === "keep" ? prev.carryoverRemaining : 0);
-    carryoverOpening = Math.max(0, roundHalf(rolled));
+    const prev = computeYear(year - 1, input, preview, cache);
+    const keep = policy.expiryPolicy === "keep";
+    carryoverOpening = Math.max(0, roundHalf(prev.currentRemaining + (keep ? prev.carryoverRemaining : 0)));
+    openingFree = Math.max(0, roundHalf(prev.freeCurrent + (keep ? prev.freeCarryover : 0)));
+    openingProjected = Math.max(0, roundHalf(prev.projectedCurrent + (keep ? prev.projectedCarryover : 0)));
   }
+  const carryoverReservedByPrev = roundHalf(Math.max(0, carryoverOpening - openingFree));
+  const carryoverReducedByPreview = roundHalf(Math.max(0, openingFree - openingProjected));
 
   const carryoverDeadline = carryoverDeadlineFor(year, input);
   const deadlinePassed = input.today > carryoverDeadline;
@@ -160,7 +179,12 @@ export function computeYear(
     { status: "preview", items: preview ? [preview] : [] },
   ];
 
-  let carryLeft = Math.max(0, carryoverTotal);
+  // Carryover pots per group: approved requests see the official pot, pending
+  // requests and the preview see what is left once the previous year is settled.
+  const potApproved = Math.max(0, carryoverTotal);
+  const potFree = Math.max(0, roundHalf(carryoverTotal - carryoverReservedByPrev));
+  const potProjected = Math.max(0, roundHalf(potFree - carryoverReducedByPreview));
+  let carryLeft = potApproved;
   const approved = emptySplit();
   const pending = emptySplit();
   const previewSplit = emptySplit();
@@ -168,6 +192,8 @@ export function computeYear(
   const byRequest = new Map<string, Split>();
 
   for (const group of groups) {
+    if (group.status === "pending") carryLeft = Math.max(0, roundHalf(potFree - approved.carryover));
+    if (group.status === "preview") carryLeft = Math.max(0, roundHalf(potProjected - approved.carryover - pending.carryover));
     const target = group.status === "approved" ? approved : group.status === "pending" ? pending : previewSplit;
     for (const req of group.items) {
       const split = emptySplit();
@@ -195,15 +221,23 @@ export function computeYear(
   const expiryActive = policy.expiryPolicy === "expire" && deadlinePassed;
   const unplannedCarry = roundHalf(Math.max(0, carryoverTotal - approved.carryover - pending.carryover));
   const expired = expiryActive ? unplannedCarry : 0;
-  const atRisk = !expiryActive && policy.expiryPolicy === "expire" ? unplannedCarry : 0;
+  const unplannedFree = roundHalf(Math.max(0, potFree - approved.carryover - pending.carryover));
+  const atRisk = !expiryActive && policy.expiryPolicy === "expire" ? unplannedFree : 0;
 
   const carryoverRemaining = roundHalf(carryoverTotal - approved.carryover - expired);
   const currentRemaining = roundHalf(currentTotal - approved.current);
   const totalAvailable = roundHalf(carryoverRemaining + currentRemaining);
-  const freeCarryover = roundHalf(carryoverRemaining - pending.carryover);
-  const freeCurrent = roundHalf(currentRemaining - pending.current);
+  // Free and projected balances. Carryover used beyond the smaller pot is
+  // effectively taken from the current year.
+  const usedAll = roundHalf(approved.total + pending.total);
+  const carryUsedFree = Math.min(potFree, roundHalf(approved.carryover + pending.carryover));
+  const freeCarryover = expiryActive ? 0 : roundHalf(potFree - carryUsedFree);
+  const freeCurrent = roundHalf(currentTotal - (usedAll - carryUsedFree));
   const freeTotal = roundHalf(freeCarryover + freeCurrent);
-  const projectedTotal = roundHalf(freeTotal - previewSplit.total);
+  const carryUsedProj = Math.min(potProjected, roundHalf(approved.carryover + pending.carryover + previewSplit.carryover));
+  const projectedCarryover = expiryActive ? 0 : roundHalf(potProjected - carryUsedProj);
+  const projectedCurrent = roundHalf(currentTotal - (usedAll + previewSplit.total - carryUsedProj));
+  const projectedTotal = roundHalf(projectedCarryover + projectedCurrent);
 
   const ledger: YearLedger = {
     year,
@@ -226,10 +260,14 @@ export function computeYear(
     carryoverRemaining,
     currentRemaining,
     totalAvailable,
+    carryoverReservedByPrev,
+    carryoverReducedByPreview,
     freeCarryover,
     freeCurrent,
     freeTotal,
     projectedTotal,
+    projectedCarryover,
+    projectedCurrent,
     allocations,
     byRequest,
   };
@@ -242,24 +280,41 @@ export function computeYear(
  * as the preview so the numbers show the state "before" and "after" it.
  */
 export function balanceForRequest(input: LedgerInput, req: { id: string; start: ISODate; days: RequestDay[] }): BalanceSnapshot {
-  const year = req.days.length ? yearOf(req.days[0].date) : yearOf(req.start);
-  const ledger = computeYear(year, input, { id: req.id, days: req.days });
-  const requestedInYear = ledger.preview.total;
-  const nextYearDays = roundHalf(
-    req.days.filter((d) => yearOf(d.date) > year).reduce((s, d) => s + d.value, 0),
-  );
+  const firstYear = req.days.length ? yearOf(req.days[0].date) : yearOf(req.start);
+  const lastYear = req.days.length ? yearOf(req.days[req.days.length - 1].date) : firstYear;
+  const parts: YearBalance[] = [];
+  for (let year = firstYear; year <= lastYear; year++) {
+    parts.push(yearBalance(computeYear(year, input, { id: req.id, days: req.days }), input.today));
+  }
+  const nextYearDays = roundHalf(parts.slice(1).reduce((s, p) => s + p.requested, 0));
+  return { ...parts[0], nextYearDays, parts };
+}
+
+/**
+ * The balance of one year from the point of view of the preview request.
+ * Carryover is shown net: days that the previous year still needs (pending
+ * requests there, or this request's own days there) are already taken off, so
+ * available − reserved − requested = projected holds for every year.
+ */
+function yearBalance(l: YearLedger, today: ISODate): YearBalance {
+  const totalAvailable = roundHalf(l.projectedTotal + l.pending.total + l.preview.total);
+  const carryoverAvailable =
+    l.expired > 0 || l.deadlinePassed
+      ? l.carryoverRemaining
+      : Math.max(0, roundHalf(l.carryoverTotal - l.carryoverReservedByPrev - l.carryoverReducedByPreview - l.approved.carryover));
+  const yearStarted = today >= makeDate(l.year, 1, 1);
   return {
-    year,
-    carryoverAvailable: ledger.carryoverRemaining,
-    carryoverDeadline: ledger.carryoverDeadline,
-    currentAvailable: ledger.currentRemaining,
-    totalAvailable: ledger.totalAvailable,
-    reservedByPending: ledger.pending.total,
-    requested: requestedInYear,
-    fromCarryover: ledger.preview.carryover,
-    fromCurrent: ledger.preview.current,
-    projected: ledger.projectedTotal,
-    nextYearDays,
+    year: l.year,
+    carryoverAvailable,
+    carryoverDeadline: l.carryoverDeadline,
+    carryoverExpected: !l.carryoverIsOverride && (!yearStarted || l.carryoverReservedByPrev + l.carryoverReducedByPreview > 0),
+    currentAvailable: roundHalf(totalAvailable - carryoverAvailable),
+    totalAvailable,
+    reservedByPending: l.pending.total,
+    requested: l.preview.total,
+    fromCarryover: l.preview.carryover,
+    fromCurrent: l.preview.current,
+    projected: l.projectedTotal,
   };
 }
 
