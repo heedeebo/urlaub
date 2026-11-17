@@ -18,7 +18,7 @@ export default function RequestDetail() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { data, deleteDraft } = useStore();
-  const { balanceOf, downloadPdf, previewEmail, send, setStatus } = useRequestActions();
+  const { balanceOf, downloadPdf, previewEmail, setStatus } = useRequestActions();
   const r = data.requests.find((x) => x.id === id);
   const [next, setNext] = useState<RequestStatus | "">("");
   const [note, setNote] = useState("");
@@ -62,14 +62,6 @@ export default function RequestDetail() {
       setNote("");
     });
 
-  const sendAgain = () =>
-    run(async () => {
-      if (!window.confirm(t("send.confirm", { to: data.settings.profile.managerEmail }))) return;
-      const out = await send(r);
-      if (out.kind === "error") setMessage({ tone: "error", text: out.message });
-      else setMessage({ tone: "ok", text: out.kind === "email" ? t("send.sentEmail", { to: out.to }) : t("send.sentMailto") });
-    });
-
   return (
     <>
       <PageHeader
@@ -99,7 +91,7 @@ export default function RequestDetail() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[1fr_380px]">
         <div className="grid gap-4">
-          {r.status === "pending" && r.sentVia !== "email" && <MailWithPdf request={r} highlight={sentNotice === "mailto"} />}
+          {r.status === "pending" && <MailWithPdf request={r} autoOpen={sentNotice === "mailto"} />}
           <Card className="p-4 sm:p-5">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
               <div>
@@ -242,11 +234,6 @@ export default function RequestDetail() {
                   {t("detail.deleteDraft")}
                 </Button>
               </>
-            )}
-            {r.status === "pending" && r.signature && (
-              <Button variant="secondary" onClick={sendAgain} disabled={busy}>
-                {t("detail.sendAgain")}
-              </Button>
             )}
           </Card>
         </div>

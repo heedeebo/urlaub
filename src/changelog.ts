@@ -11,6 +11,7 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  { version: "1.5.0", date: "2026-11-17", key: "v1_5_0" },
   { version: "1.4.1", date: "2026-11-17", key: "v1_4_1" },
   { version: "1.4.0", date: "2026-11-17", key: "v1_4_0" },
   { version: "1.3.0", date: "2026-11-17", key: "v1_3_0" },

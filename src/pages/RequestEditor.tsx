@@ -103,7 +103,6 @@ export default function RequestEditor() {
   };
 
   const sendNow = async () => {
-    if (!window.confirm(t("send.confirm", { to: profile.managerEmail }))) return;
     setBusy(true);
     setMessage(null);
     try {

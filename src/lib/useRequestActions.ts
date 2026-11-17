@@ -3,10 +3,10 @@ import { useStore } from "../data/store";
 import { renderEmail, templateValues } from "../domain/email";
 import { balanceForRequest } from "../domain/ledger";
 import type { RequestStatus, VacationRequest } from "../domain/types";
-import { bytesToBase64, downloadBlob } from "./download";
-import { importOrReload } from "./staleVersion";
-const loadPdf = () => importOrReload(() => import("./pdf"));
-import { sendViaServer } from "./sendRequest";
+import { downloadBlob } from "./download";
+// Bundled with the app on purpose: a lazy chunk can vanish during an update.
+import * as pdfModule from "./pdf";
+const loadPdf = async () => pdfModule;
 
 export type SendOutcome =
   | { kind: "email"; to: string }
@@ -32,8 +32,8 @@ export function useRequestActions() {
     renderEmail(data.settings.emailTemplate, templateValues(profile, r, balanceOf(r)));
 
   /**
-   * Freezes the balance, builds the signed PDF and sends it to the manager.
-   * Without email configuration it downloads the PDF and opens an email draft.
+   * Freezes the balance and marks the request as pending. Nothing is sent
+   * from here: the request page opens an email draft with the PDF attached.
    */
   const send = async (draft: VacationRequest): Promise<SendOutcome> => {
     if (!draft.signature) return { kind: "error", message: t("send.needSignature") };
@@ -41,32 +41,6 @@ export function useRequestActions() {
     const now = new Date().toISOString();
     const snapshot = balanceForRequest(input, draft);
     const prepared: VacationRequest = { ...draft, snapshot, sentAt: now };
-    const { generateRequestPdf, pdfFilename } = await loadPdf();
-    const bytes = await generateRequestPdf({ t, profile, request: prepared, balance: snapshot });
-    const filename = pdfFilename(prepared, profile);
-    const mail = renderEmail(data.settings.emailTemplate, templateValues(profile, prepared, snapshot));
-
-    const result = await sendViaServer({
-      to: profile.managerEmail,
-      cc: profile.personalEmail || undefined,
-      replyTo: profile.personalEmail || undefined,
-      subject: mail.subject,
-      text: mail.body,
-      attachment: { filename, contentBase64: bytesToBase64(bytes) },
-    });
-
-    if (result.ok) {
-      await saveRequest({
-        ...prepared,
-        status: "pending",
-        sentVia: "email",
-        updatedAt: now,
-        statusHistory: [...prepared.statusHistory, { status: "pending", at: now, note: t("send.historyEmail", { to: profile.managerEmail }) }],
-      });
-      return { kind: "email", to: profile.managerEmail };
-    }
-    if (result.reason !== "not_configured") return { kind: "error", message: result.message || t("send.failed") };
-
     // No server: the request page then offers ways to send the email with the PDF attached.
     await saveRequest({
       ...prepared,

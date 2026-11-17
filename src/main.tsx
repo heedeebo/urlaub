@@ -10,6 +10,17 @@ window.addEventListener("vite:preloadError", (e) => {
   if (reloadForNewVersion()) e.preventDefault();
 });
 
+// A new version took over in the background: switch to it, but never while
+// a request is being filled in (unsaved input would be lost).
+if ("serviceWorker" in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
+    if (/\/(new|edit)(\?|$)/.test(window.location.hash)) return;
+    window.location.reload();
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
