@@ -52,7 +52,7 @@ export function balanceText(b: BalanceSnapshot, locale = "en-US"): string {
     return lines.join("\n");
   });
   if (parts.length > 1) {
-    sections.unshift(`This request spans ${parts.map((p) => p.year).join(" and ")}. Each year is deducted from its own balance.`);
+    sections.unshift(`This request spans ${parts.map((p) => p.year).join(" and ")}. Each year is deducted from its own balance, so there is one PDF per year attached.`);
   }
   return sections.join("\n\n") + "\n";
 }

@@ -52,8 +52,8 @@ export function createSupabaseRepository(db: SupabaseClient): Repository {
     async saveRequest(r) {
       await check(db.from("vacation_requests").upsert(requestRow(r)));
     },
-    async deleteDraft(id) {
-      await check(db.from("vacation_requests").delete().eq("id", id).eq("status", "draft"));
+    async deleteRequest(id) {
+      await check(db.from("vacation_requests").delete().eq("id", id));
     },
     async replaceAll(data) {
       // Restore: settings and year accounts are overwritten, requests upserted,

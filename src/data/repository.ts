@@ -13,7 +13,8 @@ export interface Repository {
   addAdjustment(adjustment: Adjustment): Promise<void>;
   saveRequest(request: VacationRequest): Promise<void>;
   /** Only drafts may be deleted. Sent requests stay in the history. */
-  deleteDraft(id: string): Promise<void>;
+  /** Removes a request completely, whatever its status. */
+  deleteRequest(id: string): Promise<void>;
   /** Restore from a backup file. */
   replaceAll(data: AppData): Promise<void>;
 }

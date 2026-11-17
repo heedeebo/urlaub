@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { VacationRequest } from "../domain/types";
 import { downloadBlob } from "../lib/download";
-import { buildEml, canShareFile, emlFilename, type MailWithAttachment } from "../lib/mailFile";
+import { buildEml, canShareFiles, emlFilename, type MailWithAttachment } from "../lib/mailFile";
 import { openMailDraft } from "../lib/sendRequest";
 import { useRequestActions } from "../lib/useRequestActions";
 import { Button, Card, Notice, cx } from "./ui";
@@ -38,17 +38,17 @@ export default function MailWithPdf({ request, autoOpen }: { request: VacationRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.id, request.updatedAt]);
 
-  const file = mail ? new File([mail.pdf as BlobPart], mail.filename, { type: "application/pdf" }) : null;
-  const canShare = !!file && canShareFile(file);
+  const files = mail ? mail.attachments.map((a) => new File([a.pdf as BlobPart], a.filename, { type: "application/pdf" })) : [];
+  const canShare = files.length > 0 && canShareFiles(files);
   const useShare = canShare && isPhone();
 
   const share = async () => {
-    if (!mail || !file) return;
+    if (!mail || !files.length) return;
     setError("");
     try {
       // Many phone mail apps ignore "title" and take the first line of the text
       // as subject. So the subject goes first, then the actual email text.
-      await navigator.share({ files: [file], title: mail.subject, text: `${mail.subject}\n\n${mail.text}` });
+      await navigator.share({ files, title: mail.subject, text: `${mail.subject}\n\n${mail.text}` });
     } catch (e) {
       const name = (e as Error).name;
       if (name === "NotAllowedError") setHint(t("mailPdf.tapToOpen"));
@@ -58,7 +58,7 @@ export default function MailWithPdf({ request, autoOpen }: { request: VacationRe
 
   const eml = () => {
     if (!mail) return;
-    downloadBlob(new Blob([buildEml(mail)], { type: "message/rfc822" }), emlFilename(mail.filename));
+    downloadBlob(new Blob([buildEml(mail)], { type: "message/rfc822" }), emlFilename(mail.attachments[0].filename));
   };
 
   const open = () => (useShare ? share() : eml());
@@ -72,8 +72,8 @@ export default function MailWithPdf({ request, autoOpen }: { request: VacationRe
   }, [autoOpen, mail]);
 
   const draft = () => {
-    if (!mail || !file) return;
-    downloadBlob(file, mail.filename);
+    if (!mail || !files.length) return;
+    files.forEach((f, i) => setTimeout(() => downloadBlob(f, f.name), i * 600));
     setTimeout(() => openMailDraft({ to: mail.to, cc: mail.cc, subject: mail.subject, text: mail.text }), 400);
   };
 
@@ -96,6 +96,9 @@ export default function MailWithPdf({ request, autoOpen }: { request: VacationRe
       {error && <Notice tone="error">{error}</Notice>}
       {mail && (
         <div className="grid gap-4">
+          {files.length > 1 && (
+            <Notice tone="info">{t("mailPdf.twoPdfs", { count: files.length, names: files.map((f) => f.name).join(", ") })}</Notice>
+          )}
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-sm">
             <span className="text-slate-500">{t("mailPdf.to")}</span>
             <b className="break-all">{mail.to}</b>

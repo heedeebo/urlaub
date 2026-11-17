@@ -46,9 +46,9 @@ export function createLocalRepository(): Repository {
       write((d) => {
         d.requests = [...d.requests.filter((r) => r.id !== request.id), structuredClone(request)];
       }),
-    deleteDraft: (id) =>
+    deleteRequest: (id) =>
       write((d) => {
-        d.requests = d.requests.filter((r) => !(r.id === id && r.status === "draft"));
+        d.requests = d.requests.filter((r) => r.id !== id);
       }),
     async replaceAll(data) {
       const copy = structuredClone(data);

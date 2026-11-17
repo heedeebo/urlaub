@@ -45,12 +45,15 @@ export interface PdfInput {
   request: VacationRequest;
   balance: BalanceSnapshot;
   generatedAt?: Date;
+  /** Set when a request across New Year is split into one document per year. */
+  part?: { index: number; count: number; year: number; otherYears: number[] };
 }
 
 /** Builds the official A4 vacation request document. */
-export async function generateRequestPdf({ t, profile, request, balance, generatedAt = new Date() }: PdfInput): Promise<Uint8Array> {
+export async function generateRequestPdf({ t, profile, request, balance, generatedAt = new Date(), part }: PdfInput): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.setTitle(safe(`${t("pdf.title")} ${request.number}`));
+  const docNumber = part ? `${request.number} / ${part.year}` : request.number;
+  doc.setTitle(safe(`${t("pdf.title")} ${docNumber}`));
   doc.setAuthor(safe(employeeName(profile)));
   doc.setSubject(safe(t("pdf.title")));
   doc.setCreator("My Vacation Manager");
@@ -72,7 +75,7 @@ export async function generateRequestPdf({ t, profile, request, balance, generat
   page.drawRectangle({ x: 0, y: y - 92, width: W, height: 92, color: NAVY });
   text(page, profile.company || "", M, y - 40, 17, bold, rgb(1, 1, 1));
   text(page, t("pdf.title").toUpperCase(), M, y - 60, 10, font, rgb(0.78, 0.82, 0.9));
-  right(request.number, W - M, y - 40, 12, bold, rgb(1, 1, 1));
+  right(docNumber, W - M, y - 40, 12, bold, rgb(1, 1, 1));
   right(t("pdf.date", { date: formatDate((request.sentAt ?? request.createdAt).slice(0, 10)) }), W - M, y - 58, 9, font, rgb(0.78, 0.82, 0.9));
   y -= 122;
 
@@ -113,12 +116,18 @@ export async function generateRequestPdf({ t, profile, request, balance, generat
   const halves = request.days.filter((d) => d.value < 1).map((d) => formatShort(d.date));
   pair(t("pdf.halfDays"), halves.length ? halves.join(", ") : t("pdf.none"), 1);
   y -= 40;
+  if (part) {
+    y += 6;
+    page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: 20, color: NAVY_BG });
+    text(page, t("pdf.partNote", { index: part.index, count: part.count, year: part.year, other: part.otherYears.join(", ") }), M + 8, y, 8.5, bold, NAVY);
+    y -= 28;
+  }
 
   // Balance table: one column per calendar year, each year strictly separate.
   const parts: YearBalance[] = balance.parts?.length ? balance.parts : [balance];
   const multi = parts.length > 1;
   section(multi ? t("pdf.balanceMulti", { years: parts.map((p) => p.year).join(" / ") }) : t("pdf.balance", { year: balance.year }));
-  const rowH = multi ? 17 : 19;
+  const rowH = multi || part ? 17 : 19;
   const days = (n: number) => t("common.days", { count: n, value: formatDays(n) });
   const valueX = (i: number) => W - M - 10 - (parts.length - 1 - i) * 110;
   const anyExpected = parts.some((p) => p.carryoverExpected);
@@ -211,12 +220,64 @@ export async function generateRequestPdf({ t, profile, request, balance, generat
   // Footer
   page.drawLine({ start: { x: M, y: 46 }, end: { x: W - M, y: 46 }, thickness: 0.5, color: LINE });
   text(page, t("pdf.footer", { date: formatDateTime(generatedAt.toISOString()) }), M, 32, 7.5, font, MUTED);
-  right(request.number, W - M, 32, 7.5, font, MUTED);
+  right(docNumber, W - M, 32, 7.5, font, MUTED);
 
   return doc.save();
 }
 
-export function pdfFilename(request: VacationRequest, profile: Profile): string {
+export function pdfFilename(request: VacationRequest, profile: Profile, year?: number): string {
   const name = employeeName(profile).replace(/[^\w]+/g, "-").replace(/^-|-$/g, "") || "employee";
-  return `${request.number}_Vacation-Request_${name}.pdf`;
+  return `${request.number}${year ? `_${year}` : ""}_Vacation-Request_${name}.pdf`;
+}
+
+export interface YearPart {
+  year: number;
+  request: VacationRequest;
+  balance: BalanceSnapshot;
+}
+
+/**
+ * A request across New Year becomes one part per calendar year: only the
+ * days of that year and only that year's balance. One year: one part.
+ */
+export function splitByYear(request: VacationRequest, balance: BalanceSnapshot): YearPart[] {
+  const parts = balance.parts ?? [];
+  if (parts.length < 2) return [{ year: balance.year, request, balance }];
+  return parts.map((p) => {
+    const from = `${p.year}-01-01`;
+    const to = `${p.year}-12-31`;
+    return {
+      year: p.year,
+      request: {
+        ...request,
+        start: request.start > from ? request.start : from,
+        end: request.end < to ? request.end : to,
+        days: request.days.filter((d) => d.date >= from && d.date <= to),
+      },
+      balance: { ...p, nextYearDays: 0, parts: [p] },
+    };
+  });
+}
+
+export interface PdfFile {
+  filename: string;
+  bytes: Uint8Array;
+}
+
+/** All documents for a request: one PDF, or one per year across New Year. */
+export async function generateRequestPdfs(input: PdfInput): Promise<PdfFile[]> {
+  const parts = splitByYear(input.request, input.balance);
+  if (parts.length === 1) return [{ filename: pdfFilename(input.request, input.profile), bytes: await generateRequestPdf(input) }];
+  const years = parts.map((p) => p.year);
+  return Promise.all(
+    parts.map(async (p, i) => ({
+      filename: pdfFilename(input.request, input.profile, p.year),
+      bytes: await generateRequestPdf({
+        ...input,
+        request: p.request,
+        balance: p.balance,
+        part: { index: i + 1, count: parts.length, year: p.year, otherYears: years.filter((y) => y !== p.year) },
+      }),
+    })),
+  );
 }

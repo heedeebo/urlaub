@@ -325,6 +325,7 @@ const en = {
     draft: "Email draft without attachment",
     draftHint: "Downloads the PDF and opens a draft. You attach the PDF yourself.",
     tapToOpen: "Tap the button to open your email app.",
+    twoPdfs: "This request spans New Year, so the email gets {{count}} PDFs, one per year: {{names}}",
   },
   detail: {
     notFound: "Request not found.",
@@ -362,8 +363,9 @@ const en = {
     markSent: "Mark as sent manually",
     markSentConfirm: "Mark this request as sent without sending an email from the app?",
     markedSentManually: "Marked as sent manually",
-    deleteDraft: "Delete draft",
-    deleteConfirm: "Delete this draft? Sent requests are never deleted.",
+    deleteRequest: "Delete request",
+    deleteConfirmDraft: "Delete draft {{number}}? This cannot be undone.",
+    deleteConfirm: "Delete request {{number}} completely? It disappears from history, calendar and all balances. This cannot be undone.",
     sendAgain: "Send email again",
   },
   requests: {
@@ -375,6 +377,10 @@ const en = {
     notCounted: "Not counted",
   },
   changelog: {
+    v1_6_0: [
+      "Every request can be deleted completely. It disappears from history, calendar and balances.",
+      "Request across New Year: one PDF per year, both attached to the email.",
+    ],
     v1_5_1: ["Fix: on the phone the email gets the proper subject line again (Vacation request: name, dates)."],
     v1_5_0: [
       "Nothing is sent directly anymore. The app always opens an email draft with the signed PDF attached, you send it yourself.",
@@ -540,6 +546,7 @@ const en = {
   },
   pdf: {
     title: "Vacation request",
+    partNote: "Document {{index}} of {{count}}: only the days in {{year}}. The days in {{other}} are in a separate document.",
     date: "Date: {{date}}",
     dateLabel: "Date",
     employee: "Employee",

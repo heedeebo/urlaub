@@ -64,6 +64,6 @@ create policy "add own requests" on public.vacation_requests
   for insert with check (user_id = (select auth.uid()));
 create policy "update own requests" on public.vacation_requests
   for update using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
--- Only drafts can be deleted. Sent requests stay in the history forever.
-create policy "delete own drafts" on public.vacation_requests
-  for delete using (user_id = (select auth.uid()) and status = 'draft');
+-- Requests can be deleted completely (Chris' decision, 17.11.2026).
+create policy "delete own requests" on public.vacation_requests
+  for delete using (user_id = (select auth.uid()));

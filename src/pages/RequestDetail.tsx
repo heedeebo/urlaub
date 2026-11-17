@@ -17,7 +17,7 @@ export default function RequestDetail() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { data, deleteDraft } = useStore();
+  const { data, deleteRequest } = useStore();
   const { balanceOf, downloadPdf, previewEmail, setStatus } = useRequestActions();
   const r = data.requests.find((x) => x.id === id);
   const [next, setNext] = useState<RequestStatus | "">("");
@@ -220,21 +220,21 @@ export default function RequestDetail() {
                 >
                   {t("detail.markSent")}
                 </Button>
-                <Button
-                  variant="danger"
-                  onClick={() =>
-                    run(async () => {
-                      if (!window.confirm(t("detail.deleteConfirm"))) return;
-                      await deleteDraft(r.id);
-                      navigate("/requests");
-                    })
-                  }
-                  disabled={busy}
-                >
-                  {t("detail.deleteDraft")}
-                </Button>
               </>
             )}
+            <Button
+              variant="danger"
+              onClick={() =>
+                run(async () => {
+                  if (!window.confirm(t(r.status === "draft" ? "detail.deleteConfirmDraft" : "detail.deleteConfirm", { number: r.number }))) return;
+                  await deleteRequest(r.id);
+                  navigate("/requests");
+                })
+              }
+              disabled={busy}
+            >
+              {t("detail.deleteRequest")}
+            </Button>
           </Card>
         </div>
       </div>

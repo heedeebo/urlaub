@@ -5,8 +5,8 @@ export interface MailWithAttachment {
   cc?: string;
   subject: string;
   text: string;
-  filename: string;
-  pdf: Uint8Array;
+  /** One PDF, or one per year for a request across New Year. */
+  attachments: { filename: string; pdf: Uint8Array }[];
 }
 
 const CRLF = "\r\n";
@@ -22,12 +22,11 @@ function encodeHeader(value: string): string {
 }
 
 /**
- * Builds an unsent email (.eml) with the PDF attached. Outlook opens it as a
- * ready draft with recipient, subject, text and attachment ("X-Unsent: 1").
+ * Builds an unsent email (.eml) with the PDFs attached. Outlook opens it as a
+ * ready draft with recipient, subject, text and attachments ("X-Unsent: 1").
  */
 export function buildEml(m: MailWithAttachment): string {
   const boundary = `----=_vacation_${Math.random().toString(36).slice(2)}`;
-  const safeName = m.filename.replace(/["\\\r\n]/g, "_");
   const headers = [
     `To: ${m.to}`,
     m.cc ? `Cc: ${m.cc}` : "",
@@ -36,32 +35,39 @@ export function buildEml(m: MailWithAttachment): string {
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
   ].filter(Boolean);
+  const attachmentParts = m.attachments.flatMap((a) => {
+    const safeName = a.filename.replace(/["\\\r\n]/g, "_");
+    return [
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${safeName}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${safeName}"`,
+      "",
+      wrap76(bytesToBase64(a.pdf)),
+    ];
+  });
   const body = [
     `--${boundary}`,
     "Content-Type: text/plain; charset=utf-8",
     "Content-Transfer-Encoding: base64",
     "",
     wrap76(bytesToBase64(new TextEncoder().encode(m.text.replace(/\r?\n/g, CRLF)))),
-    `--${boundary}`,
-    `Content-Type: application/pdf; name="${safeName}"`,
-    "Content-Transfer-Encoding: base64",
-    `Content-Disposition: attachment; filename="${safeName}"`,
-    "",
-    wrap76(bytesToBase64(m.pdf)),
+    ...attachmentParts,
     `--${boundary}--`,
     "",
   ];
   return [...headers, "", ...body].join(CRLF);
 }
 
+/** VR-2026-005_2026_Vacation-Request_Name.pdf -> VR-2026-005_Vacation-Request_Name.eml */
 export function emlFilename(pdfName: string): string {
-  return pdfName.replace(/\.pdf$/i, "") + ".eml";
+  return pdfName.replace(/_\d{4}_Vacation/, "_Vacation").replace(/\.pdf$/i, "") + ".eml";
 }
 
-/** True when the device can hand a PDF to an email app (share sheet). */
-export function canShareFile(file: File): boolean {
+/** True when the device can hand the PDFs to an email app (share sheet). */
+export function canShareFiles(files: File[]): boolean {
   try {
-    return typeof navigator !== "undefined" && !!navigator.canShare && navigator.canShare({ files: [file] });
+    return typeof navigator !== "undefined" && !!navigator.canShare && navigator.canShare({ files });
   } catch {
     return false;
   }

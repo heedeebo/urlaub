@@ -39,7 +39,7 @@ interface StoreValue {
   saveYearAccount(a: YearAccount): Promise<void>;
   addAdjustment(a: Adjustment): Promise<void>;
   saveRequest(r: VacationRequest): Promise<void>;
-  deleteDraft(id: string): Promise<void>;
+  deleteRequest(id: string): Promise<void>;
   replaceAll(d: AppData): Promise<void>;
 }
 
@@ -121,10 +121,10 @@ export function StoreProvider({ repo, children }: { repo: Repository; children: 
           () => repo.saveRequest(r),
           (d) => ({ ...d, requests: [...d.requests.filter((x) => x.id !== r.id), r] }),
         ),
-      deleteDraft: (id) =>
+      deleteRequest: (id) =>
         run(
-          () => repo.deleteDraft(id),
-          (d) => ({ ...d, requests: d.requests.filter((x) => !(x.id === id && x.status === "draft")) }),
+          () => repo.deleteRequest(id),
+          (d) => ({ ...d, requests: d.requests.filter((x) => x.id !== id) }),
         ),
       replaceAll: async (nd) => {
         await run(() => repo.replaceAll(nd), () => nd);

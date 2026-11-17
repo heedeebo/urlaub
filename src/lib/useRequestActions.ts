@@ -23,9 +23,12 @@ export function useRequestActions() {
 
   const buildPdf = async (r: VacationRequest) => (await loadPdf()).generateRequestPdf({ t, profile, request: r, balance: balanceOf(r) });
 
+  /** Downloads the PDF, or one PDF per year for a request across New Year. */
   const downloadPdf = async (r: VacationRequest) => {
-    const bytes = await buildPdf(r);
-    downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), (await loadPdf()).pdfFilename(r, profile));
+    const files = await (await loadPdf()).generateRequestPdfs({ t, profile, request: r, balance: balanceOf(r) });
+    files.forEach((f, i) =>
+      setTimeout(() => downloadBlob(new Blob([f.bytes as BlobPart], { type: "application/pdf" }), f.filename), i * 600),
+    );
   };
 
   const previewEmail = (r: VacationRequest) =>
@@ -54,17 +57,16 @@ export function useRequestActions() {
 
   /** Everything needed to send a request by hand: recipient, text and the signed PDF. */
   const mailWithPdf = async (r: VacationRequest) => {
-    const { generateRequestPdf, pdfFilename } = await loadPdf();
+    const { generateRequestPdfs } = await loadPdf();
     const balance = balanceOf(r);
-    const pdf = await generateRequestPdf({ t, profile, request: r, balance });
+    const files = await generateRequestPdfs({ t, profile, request: r, balance });
     const mail = renderEmail(data.settings.emailTemplate, templateValues(profile, r, balance));
     return {
       to: profile.managerEmail,
       cc: profile.personalEmail || undefined,
       subject: mail.subject,
       text: mail.body,
-      filename: pdfFilename(r, profile),
-      pdf,
+      attachments: files.map((f) => ({ filename: f.filename, pdf: f.bytes })),
     };
   };
 

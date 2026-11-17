@@ -8,7 +8,7 @@ import { balanceForRequest } from "../domain/ledger";
 import type { VacationRequest } from "../domain/types";
 import { buildRequestDays } from "../domain/workdays";
 import en from "../i18n/en";
-import { generateRequestPdf } from "./pdf";
+import { generateRequestPdf, generateRequestPdfs, splitByYear } from "./pdf";
 
 // 1x1 PNG, stands in for a drawn signature
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
@@ -86,5 +86,20 @@ describe("PDF document across New Year", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
     if (process.env.PDF_OUT_MULTI) writeFileSync(process.env.PDF_OUT_MULTI, bytes);
+
+    // Strictly per year: one PDF per calendar year with only that year's days.
+    const parts = splitByYear(r, balance);
+    expect(parts.map((p) => [p.request.start, p.request.end, p.request.days.every((d) => d.date.startsWith(String(p.year)))])).toEqual([
+      ["2026-12-28", "2026-12-31", true],
+      ["2027-01-01", "2027-01-08", true],
+    ]);
+    expect(parts.map((p) => p.balance.parts?.length)).toEqual([1, 1]);
+    const files = await generateRequestPdfs({ t: i18n.t, profile: s.profile, request: r, balance, generatedAt: new Date("2026-11-17T09:31:00Z") });
+    expect(files.map((f) => f.filename)).toEqual([
+      "VR-2026-004_2026_Vacation-Request_Chris-Doe.pdf",
+      "VR-2026-004_2027_Vacation-Request_Chris-Doe.pdf",
+    ]);
+    for (const f of files) expect((await PDFDocument.load(f.bytes)).getPageCount()).toBe(1);
+    if (process.env.PDF_OUT_PARTS) files.forEach((f, i) => writeFileSync(`${process.env.PDF_OUT_PARTS}-${i + 1}.pdf`, f.bytes));
   });
 });
