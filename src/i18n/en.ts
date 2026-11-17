@@ -375,6 +375,7 @@ const en = {
     notCounted: "Not counted",
   },
   changelog: {
+    v1_5_1: ["Fix: on the phone the email gets the proper subject line again (Vacation request: name, dates)."],
     v1_5_0: [
       "Nothing is sent directly anymore. The app always opens an email draft with the signed PDF attached, you send it yourself.",
       "Fix: Download PDF works again for existing requests.",

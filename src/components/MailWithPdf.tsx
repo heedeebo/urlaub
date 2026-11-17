@@ -46,7 +46,9 @@ export default function MailWithPdf({ request, autoOpen }: { request: VacationRe
     if (!mail || !file) return;
     setError("");
     try {
-      await navigator.share({ files: [file], title: mail.subject, text: mail.text });
+      // Many phone mail apps ignore "title" and take the first line of the text
+      // as subject. So the subject goes first, then the actual email text.
+      await navigator.share({ files: [file], title: mail.subject, text: `${mail.subject}\n\n${mail.text}` });
     } catch (e) {
       const name = (e as Error).name;
       if (name === "NotAllowedError") setHint(t("mailPdf.tapToOpen"));
