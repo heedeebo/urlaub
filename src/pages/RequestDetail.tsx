@@ -189,7 +189,12 @@ export default function RequestDetail() {
                   <span className="text-slate-500">{t("detail.subject")}: </span>
                   <b>{mail.subject}</b>
                 </div>
-                <pre className="whitespace-pre-wrap font-sans text-[13.5px] leading-relaxed">{mail.body}</pre>
+                <iframe
+                  title={t("detail.emailPreview")}
+                  sandbox=""
+                  srcDoc={mail.html}
+                  className="h-[560px] w-full rounded-lg border border-line bg-white"
+                />
               </div>
             </details>
           </Card>

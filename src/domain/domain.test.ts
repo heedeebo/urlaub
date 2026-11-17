@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings, DEFAULT_EMAIL_TEMPLATE, LEGACY_EMAIL_TEMPLATE } from "./defaults";
-import { renderEmail, templateValues } from "./email";
+import { renderEmail, renderEmailHtml, templateValues, templateValuesHtml } from "./email";
 import { entitlementForYear, fullMonthsEmployed } from "./entitlement";
 import { createHolidayLookup, easterSunday, publicHolidays } from "./holidays";
 import { balanceForRequest, computeYear, nextRequestNumber, type LedgerInput } from "./ledger";
@@ -407,7 +407,7 @@ describe("email template", () => {
     const r = req("2027-05-03", "2027-05-07", "draft");
     const b = balanceForRequest(input({ settings: s, requests: [r] }), r);
     const mail = renderEmail(LEGACY_EMAIL_TEMPLATE, templateValues(s.profile, r, b));
-    expect(mail.body).toContain("Vacation balance 2027:");
+    expect(mail.body).toContain("VACATION BALANCE 2027");
     expect(mail.body).not.toContain("Previous year carryover:");
   });
 
@@ -421,5 +421,20 @@ describe("email template", () => {
     expect(mail.body).toContain("Requested in 2026: 4 days (0 from 2025 carryover, 4 from 2026 vacation)");
     expect(mail.body).toContain("Carryover from 2026 (expected): 26 days");
     expect(mail.body).toContain("Requested in 2027: 4 days (4 from 2026 carryover, 0 from 2027 vacation)");
+  });
+
+  it("builds a formatted HTML version with bold data and one table per year", () => {
+    const s = settings({ trackingStartYear: 2026 }, { managerName: "Ms. Miller" });
+    const draft = { ...req("2026-12-28", "2027-01-08", "draft"), comment: "Ski trip <Arlberg> & family" };
+    const inp = input({ settings: s, requests: [draft], yearAccounts: [{ year: 2026, carryoverOverride: 0 }], today: "2026-11-17" });
+    const html = renderEmailHtml(DEFAULT_EMAIL_TEMPLATE, templateValuesHtml(s.profile, draft, balanceForRequest(inp, draft)));
+    expect(html).toContain("Dear Ms. Miller,");
+    expect(html).toContain("From: <b>December 28, 2026</b>");
+    expect(html).toContain("Requested vacation days: <b>8</b>");
+    expect(html.match(/<table/g)).toHaveLength(2);
+    expect(html).toContain("VACATION BALANCE 2026");
+    expect(html).toContain("Remaining in 2027 after approval");
+    expect(html).toContain("Ski trip &lt;Arlberg&gt; &amp; family");
+    expect(html).not.toContain("{{");
   });
 });

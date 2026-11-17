@@ -377,6 +377,11 @@ const en = {
     notCounted: "Not counted",
   },
   changelog: {
+    v1_7_0: [
+      "Clearer email: dates and numbers in bold, the balance as a small table per year (in Outlook on the laptop).",
+      "Plain text for the phone: balance as a clear list per year.",
+      "Email preview in the request shows the formatted email.",
+    ],
     v1_6_0: [
       "Every request can be deleted completely. It disappears from history, calendar and balances.",
       "Request across New Year: one PDF per year, both attached to the email.",

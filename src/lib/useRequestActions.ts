@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useStore } from "../data/store";
-import { renderEmail, templateValues } from "../domain/email";
+import { renderEmail, renderEmailHtml, templateValues, templateValuesHtml } from "../domain/email";
 import { balanceForRequest } from "../domain/ledger";
 import type { RequestStatus, VacationRequest } from "../domain/types";
 import { downloadBlob } from "./download";
@@ -31,8 +31,13 @@ export function useRequestActions() {
     );
   };
 
-  const previewEmail = (r: VacationRequest) =>
-    renderEmail(data.settings.emailTemplate, templateValues(profile, r, balanceOf(r)));
+  const previewEmail = (r: VacationRequest) => {
+    const balance = balanceOf(r);
+    return {
+      ...renderEmail(data.settings.emailTemplate, templateValues(profile, r, balance)),
+      html: renderEmailHtml(data.settings.emailTemplate, templateValuesHtml(profile, r, balance)),
+    };
+  };
 
   /**
    * Freezes the balance and marks the request as pending. Nothing is sent
@@ -66,6 +71,7 @@ export function useRequestActions() {
       cc: profile.personalEmail || undefined,
       subject: mail.subject,
       text: mail.body,
+      html: renderEmailHtml(data.settings.emailTemplate, templateValuesHtml(profile, r, balance)),
       attachments: files.map((f) => ({ filename: f.filename, pdf: f.bytes })),
     };
   };

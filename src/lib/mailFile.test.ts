@@ -40,3 +40,21 @@ describe("email file with PDF", () => {
     expect(emlFilename("VR-1_2026_Vacation-Request_C.pdf")).toBe("VR-1_Vacation-Request_C.eml");
   });
 });
+
+describe("email file with formatted text", () => {
+  it("sends text and HTML as alternatives, PDFs stay attached", () => {
+    const eml = buildEml({
+      to: "chef@firma.de",
+      subject: "Vacation request",
+      text: "Dear Jonas,\nFrom: May 3",
+      html: "<p>Dear Jonas,<br>From: <b>May 3</b></p>",
+      attachments: [{ filename: "a.pdf", pdf: new TextEncoder().encode("%PDF") }],
+    });
+    expect(eml).toContain("Content-Type: multipart/alternative;");
+    expect(eml).toContain("Content-Type: text/plain; charset=utf-8");
+    expect(eml).toContain("Content-Type: text/html; charset=utf-8");
+    const htmlB64 = eml.split("Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n")[1].split("\r\n--")[0];
+    expect(new TextDecoder().decode(Uint8Array.from(atob(htmlB64.replace(/\r\n/g, "")), (c) => c.charCodeAt(0)))).toContain("<b>May 3</b>");
+    expect(eml).toContain('filename="a.pdf"');
+  });
+});

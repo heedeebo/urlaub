@@ -5,6 +5,8 @@ export interface MailWithAttachment {
   cc?: string;
   subject: string;
   text: string;
+  /** Formatted version (bold data, tables). Email apps show it instead of the text. */
+  html?: string;
   /** One PDF, or one per year for a request across New Year. */
   attachments: { filename: string; pdf: Uint8Array }[];
 }
@@ -46,12 +48,27 @@ export function buildEml(m: MailWithAttachment): string {
       wrap76(bytesToBase64(a.pdf)),
     ];
   });
+  const b64 = (s: string) => wrap76(bytesToBase64(new TextEncoder().encode(s.replace(/\r?\n/g, CRLF))));
+  const textPart = ["Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64", "", b64(m.text)];
+  // With HTML: text and HTML as alternatives, the email app shows the HTML.
+  const alt = `----=_alt_${Math.random().toString(36).slice(2)}`;
+  const content = m.html
+    ? [
+        `Content-Type: multipart/alternative; boundary="${alt}"`,
+        "",
+        `--${alt}`,
+        ...textPart,
+        `--${alt}`,
+        "Content-Type: text/html; charset=utf-8",
+        "Content-Transfer-Encoding: base64",
+        "",
+        b64(m.html),
+        `--${alt}--`,
+      ]
+    : textPart;
   const body = [
     `--${boundary}`,
-    "Content-Type: text/plain; charset=utf-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    wrap76(bytesToBase64(new TextEncoder().encode(m.text.replace(/\r?\n/g, CRLF)))),
+    ...content,
     ...attachmentParts,
     `--${boundary}--`,
     "",
